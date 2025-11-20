@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Simple installer for Roulette Tracker Server
 # IMPORTANT: if you run this from a cloned GitHub repo, REPO is not used.
-REPO="https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPO.git"
+REPO="https://github.com/Nikoo4/deed"
 APP_DIR="/opt/roulette-tracker"
 PORT="8000"
 
