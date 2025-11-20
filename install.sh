@@ -1,42 +1,49 @@
 #!/bin/bash
 set -euo pipefail
 
-# Simple installer for Roulette Tracker Server
-# IMPORTANT: if you run this from a cloned GitHub repo, REPO is not used.
-REPO="https://github.com/Nikoo4/deed"
+# Репозиторий с сервером
+REPO="https://github.com/Nikoo4/deed.git"
 APP_DIR="/opt/roulette-tracker"
-PORT="8000"
+PORT=8000
 
-# Stop existing service if present
+# Останавливаем старый сервис (если есть)
 systemctl stop roulette.service 2>/dev/null || true
 
-# Update packages
+# Обновляем пакеты и ставим Python + git
 apt-get update -y
 apt-get install -y python3 python3-venv python3-pip git
 
-# Prepare application directory
+# Клонируем репозиторий заново
 rm -rf "$APP_DIR"
-mkdir -p "$APP_DIR"
-
-# If running from remote (curl | bash), clone repo; otherwise copy current directory
-if [[ "${RUN_FROM_REPO:-0}" == "1" ]]; then
-    git clone "$REPO" "$APP_DIR"
-else
-    # Assume script is executed from inside project root that contains server.py, requirements.txt, roulette.service
-    cp server.py requirements.txt roulette.service "$APP_DIR"/
-fi
+git clone "$REPO" "$APP_DIR"
 
 cd "$APP_DIR"
 
-# Python virtual environment
+# Виртуальное окружение
 python3 -m venv venv
 source venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
 
-# Install systemd service
-cp roulette.service /etc/systemd/system/roulette.service
+# Создаём systemd-сервис
+cat >/etc/systemd/system/roulette.service <<EOF
+[Unit]
+Description=Roulette Tracker Prediction Server
+After=network.target
 
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR
+ExecStart=$APP_DIR/venv/bin/uvicorn server:app --host 0.0.0.0 --port $PORT
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Запускаем сервис
 systemctl daemon-reload
 systemctl enable roulette.service
 systemctl restart roulette.service
@@ -44,5 +51,5 @@ systemctl restart roulette.service
 sleep 3
 systemctl status roulette.service --no-pager || true
 
-IP=$(hostname -I | awk '{print $1}')
-echo "Roulette Tracker server running at: http://$IP:$PORT/"
+IP=\$(hostname -I | awk '{print \$1}')
+echo "Roulette server running at: http://\$IP:$PORT/"
